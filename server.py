@@ -214,4 +214,4 @@ def static_file(path: str):
 
 if __name__ == '__main__':
     uvicorn.run(app, host=os.environ.get('OXYGEN_HOST', '127.0.0.1'),
-                port=int(os.environ.get('PORT', '8080')), proxy_headers=False)
+                port=int(os.environ.get('PORT', '8070')), proxy_headers=False)

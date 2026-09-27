@@ -32,7 +32,7 @@ if [[ ! -e "$config_path" ]]; then
   install -m 600 /dev/null "$config_path"
   cat > "$config_path" <<'CONFIG'
 OXYGEN_HOST=0.0.0.0
-PORT=8080
+PORT=8070
 OXYGEN_PIN=6882
 # Optional: OXYGEN_DB=/absolute/path/to/existing/oxygen.sqlite3
 CONFIG

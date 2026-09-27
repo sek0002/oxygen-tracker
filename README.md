@@ -15,15 +15,15 @@ cd oxygen-tracker
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python -m uvicorn server:app --host 0.0.0.0 --port 8080 --no-proxy-headers
+python -m uvicorn server:app --host 0.0.0.0 --port 8070 --no-proxy-headers
 ```
 
-Open http://127.0.0.1:8080 and sign in with PIN **6882**.
+Open http://127.0.0.1:8070 and sign in with PIN **6882**.
 
 For access over a trusted local network:
 
 ```sh
-OXYGEN_HOST=0.0.0.0 PORT=8080 python3 server.py
+OXYGEN_HOST=0.0.0.0 PORT=8070 python3 server.py
 ```
 
 For an internet-facing server, run behind an HTTPS reverse proxy such as Caddy or nginx. `Caddyfile.example` shows the proxy configuration. Keep the Python port bound to localhost when the proxy runs on the same host. The four-digit PIN is intentionally a simple shared access code; requests are limited to 10 failed attempts per 15 minutes, and sessions expire after 12 hours. Behind a proxy, the attempt limit is shared by its users.
@@ -44,7 +44,7 @@ This installs and starts a systemd service, enables startup after reboot, and ke
 docker compose up -d --build
 ```
 
-The supplied Compose file binds to localhost:8080 for a reverse proxy and persists SQLite in the `oxygen-data` Docker volume. Recreating the container preserves history; deleting the volume removes it. Docker was not available in the development environment, so this deployment path has not been runtime-tested.
+The supplied Compose file binds to localhost:8070 for a reverse proxy and persists SQLite in the `oxygen-data` Docker volume. Recreating the container preserves history; deleting the volume removes it. Docker was not available in the development environment, so this deployment path has not been runtime-tested.
 
 ## Configuration
 
@@ -52,7 +52,7 @@ The supplied Compose file binds to localhost:8080 for a reverse proxy and persis
 |---|---|---|
 | `OXYGEN_PIN` | `6882` | Shared access PIN |
 | `OXYGEN_HOST` | `127.0.0.1` | Server bind address |
-| `PORT` | `8080` | Server port |
+| `PORT` | `8070` | Server port |
 | `OXYGEN_DB` | `data/oxygen.sqlite3` beside server.py | Persistent SQLite database path |
 | `OXYGEN_ALLOWED_ORIGIN` | empty | Optional exact GitHub Pages origin for split hosting |
 

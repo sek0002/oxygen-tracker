@@ -67,7 +67,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-The app listens on **127.0.0.1:8080** on the Docker host. Forward your HTTPS hostname to `http://127.0.0.1:8080`. The supplied `Caddyfile.example` shows a host-based Caddy configuration. For a proxy running inside another container, localhost refers to that proxy container: attach the services to a shared Docker network and use `oxygen:8080` instead.
+The app listens on **127.0.0.1:8070** on the Docker host. Forward your HTTPS hostname to `http://127.0.0.1:8070`. The supplied `Caddyfile.example` shows a host-based Caddy configuration. For a proxy running inside another container, localhost refers to that proxy container: attach the services to a shared Docker network and use `oxygen:8070` instead.
 
 Do not run both Compose methods simultaneously. To switch methods, stop the first without deleting volumes, then start the other in the same project directory.
 
@@ -81,10 +81,10 @@ For a server installation (after cloning, or `git pull --ff-only`):
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python -m uvicorn server:app --host 0.0.0.0 --port 8080 --no-proxy-headers
+python -m uvicorn server:app --host 0.0.0.0 --port 8070 --no-proxy-headers
 ```
 
-Open `http://YOUR_SERVER_IP:8080` (allow port 8080 for LAN access).
+Open `http://YOUR_SERVER_IP:8070` (allow port 8070 for LAN access).
 
 ### Install as a systemd service
 
@@ -99,6 +99,15 @@ The installer uses your normal account (`SUDO_USER`) and the checkout's `.venv`.
 ```sh
 sudo OXYGEN_SERVICE_USER=yourusername bash install-service.sh
 ```
+
+Existing services retain their configuration when pulling updates. To change an already installed service from port 8080 to 8070:
+
+```sh
+sudo sed -i 's/^PORT=.*/PORT=8070/' /etc/oxygen-tracker.env
+sudo systemctl restart oxygen-tracker
+```
+
+Update any reverse proxy upstream or firewall rule to match port 8070.
 
 Service controls:
 
@@ -116,9 +125,9 @@ sudo nano /etc/oxygen-tracker.env
 sudo systemctl restart oxygen-tracker
 ```
 
-Defaults: `OXYGEN_HOST=0.0.0.0`, `PORT=8080`, and `OXYGEN_PIN=6882`. If your existing installation uses a custom `OXYGEN_DB`, add that absolute path to `/etc/oxygen-tracker.env` **before** running the installer. For a reverse proxy on the same host, use `OXYGEN_HOST=127.0.0.1` and configure HTTPS using `Caddyfile.example`.
+Defaults: `OXYGEN_HOST=0.0.0.0`, `PORT=8070`, and `OXYGEN_PIN=6882`. If your existing installation uses a custom `OXYGEN_DB`, add that absolute path to `/etc/oxygen-tracker.env` **before** running the installer. For a reverse proxy on the same host, use `OXYGEN_HOST=127.0.0.1` and configure HTTPS using `Caddyfile.example`.
 
-Keep the checkout and virtual environment at their installed paths. Run the installer again after moving them. The service account must be able to read the app and write its database directory. The installer backs up any existing service unit before replacing it. It does not stop unrelated processes occupying port 8080.
+Keep the checkout and virtual environment at their installed paths. Run the installer again after moving them. The service account must be able to read the app and write its database directory. The installer backs up any existing service unit before replacing it. It does not stop unrelated processes occupying port 8070.
 
 To uninstall the service while keeping the app and database:
 

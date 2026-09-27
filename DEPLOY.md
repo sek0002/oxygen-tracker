@@ -73,15 +73,18 @@ Do not run both Compose methods simultaneously. To switch methods, stop the firs
 
 ## Python without Docker
 
-Requires Python **3.11+**. No Python packages or frontend build are needed.
+Requires Python **3.11+**. Install FastAPI and Uvicorn in a virtual environment; no frontend build is needed.
 
-For a quick local test:
+For a server installation (after cloning, or `git pull --ff-only`):
 
 ```sh
-python3 server.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn server:app --host 0.0.0.0 --port 8080 --no-proxy-headers
 ```
 
-Open `http://127.0.0.1:8080`. For production on Linux, use a service manager and HTTPS reverse proxy. Example service (replace `/srv/oxygen-tracker` with your actual checkout path):
+Open `http://YOUR_SERVER_IP:8080` (allow port 8080 for LAN access). For production on Linux, use a service manager and HTTPS reverse proxy. Example service (replace `/srv/oxygen-tracker` with your actual checkout path):
 
 ```ini
 # /etc/systemd/system/oxygen-tracker.service
@@ -99,7 +102,7 @@ Environment=PORT=8080
 Environment=OXYGEN_DB=/var/lib/oxygen-tracker/oxygen.sqlite3
 EnvironmentFile=-/etc/oxygen-tracker.env
 StateDirectory=oxygen-tracker
-ExecStart=/usr/bin/python3 /srv/oxygen-tracker/server.py
+ExecStart=/srv/oxygen-tracker/.venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port 8080 --no-proxy-headers
 Restart=on-failure
 NoNewPrivileges=true
 PrivateTmp=true
@@ -110,7 +113,7 @@ ProtectHome=true
 WantedBy=multi-user.target
 ```
 
-Create the service account with your system's account-management tools, ensure it can read the checkout, and put `OXYGEN_PIN=6882` in `/etc/oxygen-tracker.env` (root-owned, mode 600). Verify `/usr/bin/python3 --version` is at least 3.11. Then:
+Create the service account with your system's account-management tools, ensure it can read the checkout, and put `OXYGEN_PIN=6882` in `/etc/oxygen-tracker.env` (root-owned, mode 600). Create `/srv/oxygen-tracker/.venv` with Python 3.11+ and install `requirements.txt` before starting the service. Then:
 
 ```sh
 sudo systemctl daemon-reload
@@ -129,7 +132,7 @@ git pull --ff-only
 docker compose -f compose.https.yaml up -d --build
 ```
 
-For the existing-proxy method omit `-f compose.https.yaml`. For the Python service, run `sudo systemctl restart oxygen-tracker` after pulling. Refresh or reopen the installed app to get updated assets.
+For the existing-proxy method omit `-f compose.https.yaml`. For the Python service, run `.venv/bin/python -m pip install -r requirements.txt` and then `sudo systemctl restart oxygen-tracker` after pulling. Refresh or reopen the installed app to get updated assets.
 
 Do **not** run `docker compose down -v`: it deletes persistent volumes. Rebuilding or restarting containers preserves the database.
 

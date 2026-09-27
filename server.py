@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Oxygen tracker: static UI + authenticated SQLite API. Python 3.11+, no dependencies."""
+"""Oxygen tracker: static UI + authenticated SQLite API. FastAPI + Uvicorn, Python 3.11+."""
 import hashlib
 import hmac
 import json
@@ -10,7 +10,14 @@ import secrets
 import sqlite3
 import time
 from datetime import datetime, timezone
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from contextlib import asynccontextmanager
+import mimetypes
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.concurrency import run_in_threadpool
+import uvicorn
 
 ROOT = Path(__file__).resolve().parent
 DB = Path(os.environ.get('OXYGEN_DB', ROOT / 'data' / 'oxygen.sqlite3'))
@@ -123,80 +130,88 @@ def api(action, body, ip):
         db.execute('INSERT INTO events(id,side,data) VALUES (?,?,?)', (request_id, side, json.dumps(event)))
         return state(db), 200
 
-class Handler(SimpleHTTPRequestHandler):
-    extensions_map = {**SimpleHTTPRequestHandler.extensions_map, ".webmanifest": "application/manifest+json"}
+PUBLIC_FILES = {
+    'index.html', 'styles.css', 'app.js', 'model.js', 'store.js', 'config.js',
+    'favicon.svg', 'manifest.webmanifest', 'sw.js', 'pwa.js', 'theme.js',
+    'icon-180.png', 'icon-192.png', 'icon-512.png',
+}
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(ROOT), **kwargs)
 
-    def log_message(self, fmt, *args):
-        # Request bodies, PINs, and session tokens are never logged.
-        super().log_message(fmt, *args)
+@asynccontextmanager
+async def lifespan(app):
+    await run_in_threadpool(initialize)
+    yield
 
-    def end_headers(self):
-        self.send_header('X-Content-Type-Options', 'nosniff')
-        self.send_header('Referrer-Policy', 'same-origin')
-        self.send_header('Cache-Control', 'no-store')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' " + (ORIGIN or '') + "; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
-        if ORIGIN and self.headers.get('Origin') == ORIGIN:
-            self.send_header('Access-Control-Allow-Origin', ORIGIN)
-            self.send_header('Vary', 'Origin')
-        super().end_headers()
 
-    def send_json(self, data, status=200):
-        payload = json.dumps(data).encode()
-        self.send_response(status)
-        self.send_header('Content-Type', 'application/json')
-        self.send_header('Content-Length', str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
+app = FastAPI(title='MUUC Oxygen Tracker', lifespan=lifespan,
+              docs_url=None, redoc_url=None, openapi_url=None)
+if ORIGIN:
+    app.add_middleware(CORSMiddleware, allow_origins=[ORIGIN],
+                       allow_methods=['POST'], allow_headers=['Content-Type'])
 
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
 
-    def do_POST(self):
-        if not self.path.startswith('/api/'):
-            return self.send_json({'error': 'Not found.'}, 404)
-        try:
-            length = int(self.headers.get('Content-Length', '0'))
-            if not 0 < length <= 16384:
-                raise APIError('Request body is too large or empty.', 413)
-            if self.headers.get_content_type() != 'application/json':
-                raise APIError('Use application/json.', 415)
-            body = json.loads(self.rfile.read(length))
-            if not isinstance(body, dict):
-                raise APIError('Invalid request.')
-            # Do not trust arbitrary forwarded headers. The proxy's IP is a shared rate-limit bucket.
-            result, code = api(self.path.removeprefix('/api/'), body, self.client_address[0])
-            self.send_json(result, code)
-        except (ValueError, json.JSONDecodeError):
-            self.send_json({'error': 'Invalid request.'}, 400)
-        except APIError as error:
-            self.send_json({'error': str(error)}, error.status)
-        except Exception:
-            self.send_json({'error': 'Database unavailable. No change was confirmed; refresh before retrying.'}, 500)
+@app.middleware('http')
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; connect-src 'self' " + ORIGIN +
+        "; img-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    )
+    return response
 
-    def do_GET(self):
-        path = self.path.split('?')[0]
-        if path == '/health':
-            with connect() as db:
-                db.execute('SELECT 1')
-            return self.send_json({'ok': True})
-        # Explicit allowlist prevents downloading the database, backups, source, or environment files.
-        if path not in ('/', '/index.html', '/styles.css', '/app.js', '/model.js', '/store.js', '/config.js', '/favicon.svg', '/manifest.webmanifest', '/sw.js', '/pwa.js', '/theme.js', '/icon-180.png', '/icon-192.png', '/icon-512.png'):
-            return self.send_json({'error': 'Not found.'}, 404)
-        super().do_GET()
 
-    def do_HEAD(self):
-        if self.path.split('?')[0] not in ('/', '/index.html', '/styles.css', '/app.js', '/model.js', '/store.js', '/config.js', '/favicon.svg', '/manifest.webmanifest', '/sw.js', '/pwa.js', '/theme.js', '/icon-180.png', '/icon-192.png', '/icon-512.png'):
-            return self.send_json({'error': 'Not found.'}, 404)
-        super().do_HEAD()
+@app.post('/api/{action}')
+async def handle_api(action: str, request: Request):
+    try:
+        if request.headers.get('content-type', '').split(';')[0].strip().lower() != 'application/json':
+            raise APIError('Use application/json.', 415)
+        raw = bytearray()
+        async for chunk in request.stream():
+            raw.extend(chunk)
+            if len(raw) > 16384:
+                raise APIError('Request body is too large.', 413)
+        if not raw:
+            raise APIError('Request body is empty.', 400)
+        body = json.loads(raw)
+        if not isinstance(body, dict):
+            raise APIError('Invalid request.')
+        # SQLite work runs in a thread so other requests do not block the event loop.
+        ip = request.client.host if request.client else 'unknown'
+        result, code = await run_in_threadpool(api, action, body, ip)
+        return JSONResponse(result, status_code=code)
+    except (ValueError, UnicodeError):
+        return JSONResponse({'error': 'Invalid request.'}, status_code=400)
+    except APIError as error:
+        return JSONResponse({'error': str(error)}, status_code=error.status)
+    except Exception:
+        return JSONResponse({'error': 'Database unavailable. No change was confirmed; refresh before retrying.'}, status_code=500)
+
+
+@app.get('/health')
+def health():
+    try:
+        with connect() as db:
+            db.execute('SELECT 1')
+        return {'ok': True}
+    except sqlite3.Error:
+        return JSONResponse({'error': 'Database unavailable.'}, status_code=503)
+
+
+@app.api_route('/{path:path}', methods=['GET', 'HEAD'])
+def static_file(path: str):
+    name = path or 'index.html'
+    # Never mount the project directory: it contains the database and configuration.
+    if name not in PUBLIC_FILES:
+        return JSONResponse({'error': 'Not found.'}, status_code=404)
+    mime = 'application/manifest+json' if name.endswith('.webmanifest') else mimetypes.guess_type(name)[0]
+    return FileResponse(ROOT / name, media_type=mime)
+
 
 if __name__ == '__main__':
-    initialize()
-    address = (os.environ.get('OXYGEN_HOST', '127.0.0.1'), int(os.environ.get('PORT', '8080')))
-    print(f'Oxygen tracker listening on http://{address[0]}:{address[1]}', flush=True)
-    ThreadingHTTPServer(address, Handler).serve_forever()
+    uvicorn.run(app, host=os.environ.get('OXYGEN_HOST', '127.0.0.1'),
+                port=int(os.environ.get('PORT', '8080')), proxy_headers=False)

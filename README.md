@@ -1,6 +1,6 @@
 # O₂ cylinder tracker
 
-A small server-hosted app for two independent G oxygen cylinders. The whole app runs from one Python process; SQLite stores the shared history. No Node installation, npm build, cloud database account, or third-party Python package is required.
+A small server-hosted app for two independent G oxygen cylinders. The whole app runs from one Python process; SQLite stores the shared history. FastAPI and Uvicorn serve the app. No Node installation, frontend build, or cloud database account is required.
 
 ## Deploy from GitHub
 
@@ -12,7 +12,10 @@ Requires Python 3.11 or newer.
 
 ```sh
 cd oxygen-tracker
-python3 server.py
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn server:app --host 0.0.0.0 --port 8080 --no-proxy-headers
 ```
 
 Open http://127.0.0.1:8080 and sign in with PIN **6882**.
@@ -77,7 +80,8 @@ To restore, stop the app, preserve the current database and any WAL/SHM files el
 ## Checks
 
 ```sh
-python3 -m unittest discover -s . -p 'test_*.py' -v
+python -m pip install -r requirements-dev.txt
+python -m unittest discover -s . -p 'test_*.py' -v
 node --test model.test.js  # optional, requires Node for frontend model tests
 ```
 

@@ -46,11 +46,17 @@ unit_path=/etc/systemd/system/oxygen-tracker.service
 if [[ -e "$unit_path" ]]; then
   cp -p "$unit_path" "$unit_path.backup-$(date +%Y%m%d-%H%M%S)"
 fi
-# Quote paths for systemd, including spaces and percent specifiers.
+# User and WorkingDirectory are scalar settings, not command-line arguments.
+# Only ExecStart arguments use quotes.
 "$python_bin" - "$app_dir" "$run_user" "$unit_path" <<'PY'
 import sys
+import re
 from pathlib import Path
 app_dir, user, destination = sys.argv[1:]
+if not re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_-]*[$]?', user):
+    raise SystemExit('Unsupported service account name.')
+if not app_dir.startswith('/') or any(c in app_dir for c in '\n\r\x00'):
+    raise SystemExit('An absolute application path without newlines is required.')
 def quote(value):
     if any(c in value for c in '\n\r\x00'):
         raise SystemExit('Unsupported newline in path or account name.')
@@ -61,8 +67,8 @@ After=network.target
 
 [Service]
 Type=simple
-User={quote(user)}
-WorkingDirectory={quote(app_dir)}
+User={user}
+WorkingDirectory={app_dir.replace('%', '%%')}
 EnvironmentFile=/etc/oxygen-tracker.env
 ExecStart={quote(app_dir + '/.venv/bin/python')} {quote(app_dir + '/server.py')}
 Restart=on-failure

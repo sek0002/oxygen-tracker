@@ -28,6 +28,16 @@ OXYGEN_HOST=0.0.0.0 PORT=8080 python3 server.py
 
 For an internet-facing server, run behind an HTTPS reverse proxy such as Caddy or nginx. `Caddyfile.example` shows the proxy configuration. Keep the Python port bound to localhost when the proxy runs on the same host. The four-digit PIN is intentionally a simple shared access code; requests are limited to 10 failed attempts per 15 minutes, and sessions expire after 12 hours. Behind a proxy, the attempt limit is shared by its users.
 
+## Run in the background (Linux)
+
+After creating `.venv` and installing `requirements.txt`, stop any manual server and run:
+
+```sh
+sudo bash install-service.sh
+```
+
+This installs and starts a systemd service, enables startup after reboot, and keeps the existing database. See [service instructions](DEPLOY.md#install-as-a-systemd-service) for logs and configuration.
+
 ## Docker
 
 ```sh

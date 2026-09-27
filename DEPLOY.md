@@ -84,44 +84,51 @@ python -m pip install -r requirements.txt
 python -m uvicorn server:app --host 0.0.0.0 --port 8080 --no-proxy-headers
 ```
 
-Open `http://YOUR_SERVER_IP:8080` (allow port 8080 for LAN access). For production on Linux, use a service manager and HTTPS reverse proxy. Example service (replace `/srv/oxygen-tracker` with your actual checkout path):
+Open `http://YOUR_SERVER_IP:8080` (allow port 8080 for LAN access).
 
-```ini
-# /etc/systemd/system/oxygen-tracker.service
-[Unit]
-Description=MUUC oxygen cylinder tracker
-After=network.target
+### Install as a systemd service
 
-[Service]
-Type=simple
-User=oxygen
-Group=oxygen
-WorkingDirectory=/srv/oxygen-tracker
-Environment=OXYGEN_HOST=127.0.0.1
-Environment=PORT=8080
-Environment=OXYGEN_DB=/var/lib/oxygen-tracker/oxygen.sqlite3
-EnvironmentFile=-/etc/oxygen-tracker.env
-StateDirectory=oxygen-tracker
-ExecStart=/srv/oxygen-tracker/.venv/bin/python -m uvicorn server:app --host 127.0.0.1 --port 8080 --no-proxy-headers
-Restart=on-failure
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Create the service account with your system's account-management tools, ensure it can read the checkout, and put `OXYGEN_PIN=6882` in `/etc/oxygen-tracker.env` (root-owned, mode 600). Create `/srv/oxygen-tracker/.venv` with Python 3.11+ and install `requirements.txt` before starting the service. Then:
+On a Linux server with systemd, stop the manually running server with Ctrl+C, then run from the checkout:
 
 ```sh
-sudo systemctl daemon-reload
-sudo systemctl enable --now oxygen-tracker
-sudo systemctl status oxygen-tracker
+sudo bash install-service.sh
 ```
 
-Use `Caddyfile.example` for a host-based reverse proxy to localhost:8080. Do not place this service checkout under a home directory when using `ProtectHome=true`.
+The installer uses your normal account (`SUDO_USER`) and the checkout's `.venv`. It enables automatic startup on reboot and restart after a failure. It preserves the existing `data/oxygen.sqlite3`; no database migration is required. Existing `/etc/oxygen-tracker.env` settings are retained on reinstall. If running from a root shell, choose a non-root service account explicitly:
+
+```sh
+sudo OXYGEN_SERVICE_USER=yourusername bash install-service.sh
+```
+
+Service controls:
+
+```sh
+sudo systemctl status oxygen-tracker
+sudo journalctl -u oxygen-tracker -f
+sudo systemctl restart oxygen-tracker
+sudo systemctl stop oxygen-tracker
+```
+
+Configuration:
+
+```sh
+sudo nano /etc/oxygen-tracker.env
+sudo systemctl restart oxygen-tracker
+```
+
+Defaults: `OXYGEN_HOST=0.0.0.0`, `PORT=8080`, and `OXYGEN_PIN=6882`. If your existing installation uses a custom `OXYGEN_DB`, add that absolute path to `/etc/oxygen-tracker.env` **before** running the installer. For a reverse proxy on the same host, use `OXYGEN_HOST=127.0.0.1` and configure HTTPS using `Caddyfile.example`.
+
+Keep the checkout and virtual environment at their installed paths. Run the installer again after moving them. The service account must be able to read the app and write its database directory. The installer backs up any existing service unit before replacing it. It does not stop unrelated processes occupying port 8080.
+
+To uninstall the service while keeping the app and database:
+
+```sh
+sudo systemctl disable --now oxygen-tracker
+sudo rm /etc/systemd/system/oxygen-tracker.service
+sudo systemctl daemon-reload
+```
+
+The installer must run on your Linux server; it cannot install systemd services on macOS or Windows.
 
 ## Update
 

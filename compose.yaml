@@ -1,0 +1,12 @@
+services:
+  oxygen:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      OXYGEN_PIN: ${OXYGEN_PIN:-6882}
+    volumes:
+      - oxygen-data:/data
+volumes:
+  oxygen-data:

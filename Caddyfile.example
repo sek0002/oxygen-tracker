@@ -1,0 +1,4 @@
+# Replace with the server's domain; Caddy automatically provisions HTTPS.
+oxygen.example.com {
+    reverse_proxy 127.0.0.1:8080
+}

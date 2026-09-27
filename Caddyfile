@@ -1,0 +1,4 @@
+{$OXYGEN_DOMAIN} {
+    encode gzip
+    reverse_proxy oxygen:8080
+}

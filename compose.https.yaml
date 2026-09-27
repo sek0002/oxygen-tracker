@@ -1,0 +1,28 @@
+services:
+  oxygen:
+    build: .
+    restart: unless-stopped
+    environment:
+      OXYGEN_PIN: ${OXYGEN_PIN:-6882}
+    volumes:
+      - oxygen-data:/data
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      OXYGEN_DOMAIN: ${OXYGEN_DOMAIN:?Set OXYGEN_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      oxygen:
+        condition: service_healthy
+volumes:
+  oxygen-data:
+  caddy-data:
+  caddy-config:

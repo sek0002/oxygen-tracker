@@ -1,0 +1,10 @@
+data/
+__pycache__/
+.env
+*.sqlite3*
+node_modules/
+test-results/
+backups/
+.env.*
+!.env.example
+.DS_Store

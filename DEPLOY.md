@@ -29,7 +29,7 @@ You can also download the release ZIP while signed in, extract it, and skip clon
 
 Requires Docker Engine with the Compose plugin. Install using the [official Docker instructions](https://docs.docker.com/engine/install/).
 
-1. Point a domain or subdomain (for example, `oxygen.yourdomain.com`) to the server's public IP with a DNS A record (and an AAAA record only if IPv6 reaches this server).
+1. Point a domain or subdomain (for example, `o2.muuc.org.au`) to the server's public IP with a DNS A record (and an AAAA record only if IPv6 reaches this server).
 2. Allow inbound TCP ports **80 and 443** through the server firewall/router. UDP 443 is optional for HTTP/3. These ports must be free; if an existing reverse proxy owns them, use the next section instead.
 3. Copy the configuration and edit it:
 
@@ -53,7 +53,7 @@ docker compose -f compose.https.yaml ps
 docker compose -f compose.https.yaml logs --tail=50
 ```
 
-Open `https://YOUR_HOSTNAME`, enter the PIN, and set up each cylinder with its current gauge pressure. Caddy obtains and renews the TLS certificate automatically. It can take a minute after startup; DNS and ports must already be reachable.
+Open `https://o2.muuc.org.au`, enter the PIN, and set up each cylinder with its current gauge pressure. Caddy obtains and renews the TLS certificate automatically. It can take a minute after startup; DNS and ports must already be reachable.
 
 The app is exposed only through Caddy. SQLite is stored in the persistent `oxygen-data` volume, and certificate state is stored in separate persistent Caddy volumes. The Compose project name is derived from the checkout directory: keep the directory name consistent during updates so Compose continues to use the same volumes.
 

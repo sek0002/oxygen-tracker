@@ -1,4 +1,5 @@
-# Replace with the server's domain; Caddy automatically provisions HTTPS.
-oxygen.example.com {
+# Add this block to the existing complete Caddy configuration.
+o2.muuc.org.au {
+    encode gzip
     reverse_proxy 127.0.0.1:8070
 }
